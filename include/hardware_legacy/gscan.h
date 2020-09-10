@@ -3,16 +3,6 @@
 #ifndef __WIFI_HAL_GSCAN_H__
 #define __WIFI_HAL_GSCAN_H__
 
-// Define static_assert() unless already defined by compiler.
-#ifndef __has_feature
-    #define __has_feature(__x) 0
-#endif
-#if !(__has_feature(cxx_static_assert)) && !defined(static_assert)
-        #define static_assert(__b, __m) \
-                extern int compile_time_assert_failed[ ( __b ) ? 1 : -1 ]  \
-                                                                   __attribute__( ( unused ) );
-#endif
-
 /* AP Scans */
 
 typedef enum {
@@ -31,6 +21,7 @@ typedef enum {
 #define MAX_SIGNIFICANT_CHANGE_APS  64
 #define MAX_EPNO_NETWORKS           64
 #define MAX_HOTLIST_SSID            8
+#define MAX_BLACKLIST_BSSID         16
 #define MAX_AP_CACHE_PER_SCAN       32
 
 wifi_error wifi_get_valid_channels(wifi_interface_handle handle,
@@ -102,9 +93,6 @@ typedef struct {
     // other fields
 } wifi_scan_result;
 
-static_assert(MAX_BUCKETS <= 8 * sizeof(unsigned),
-        "The buckets_scanned bitset is represented by an unsigned int and cannot support this many "
-        "buckets on this platform.");
 typedef struct {
     /* reported when each probe response is received, if report_events
      * enabled in wifi_scan_cmd_params. buckets_scanned is a bitset of the
@@ -275,6 +263,16 @@ typedef struct {
     int num_ssid;                                   // number of hotlist SSIDs
     ssid_threshold_param ssid[MAX_HOTLIST_SSID];    // hotlist SSIDs
 } wifi_ssid_hotlist_params;
+
+/* BSSID blacklist */
+typedef struct {
+    int num_bssid;                           // number of blacklisted BSSIDs
+    mac_addr bssids[MAX_BLACKLIST_BSSID];    // blacklisted BSSIDs
+} wifi_bssid_params;
+
+/* Set the BSSID blacklist */
+wifi_error wifi_set_bssid_blacklist(wifi_request_id id, wifi_interface_handle iface,
+        wifi_bssid_params params);
 
 /* Significant wifi change */
 typedef struct {

@@ -23,8 +23,6 @@ extern "C"
 #endif
 #include <stdint.h>
 
-#define IFNAMSIZ 16
-
 /* WiFi Common definitions */
 /* channel operating width */
 typedef enum {
@@ -37,33 +35,6 @@ typedef enum {
     WIFI_CHAN_WIDTH_10    = 6,
     WIFI_CHAN_WIDTH_INVALID = -1
 } wifi_channel_width;
-
-/* Pre selected Power scenarios to be applied from BDF file */
-typedef enum {
-    WIFI_POWER_SCENARIO_INVALID          = -2,
-    WIFI_POWER_SCENARIO_DEFAULT          = -1,
-    WIFI_POWER_SCENARIO_VOICE_CALL       = 0,
-    WIFI_POWER_SCENARIO_ON_HEAD_CELL_OFF = 1,
-    WIFI_POWER_SCENARIO_ON_HEAD_CELL_ON  = 2,
-    WIFI_POWER_SCENARIO_ON_BODY_CELL_OFF = 3,
-    WIFI_POWER_SCENARIO_ON_BODY_CELL_ON  = 4,
-    WIFI_POWER_SCENARIO_ON_BODY_BT       = 5,
-} wifi_power_scenario;
-
-typedef enum {
-  WIFI_LATENCY_MODE_NORMAL    = 0,
-  WIFI_LATENCY_MODE_LOW       = 1,
-} wifi_latency_mode;
-
-/*
- * enum wlan_mac_band - Band information corresponding to the WLAN MAC.
- */
-typedef enum {
-/* WLAN MAC Operates in 2.4 GHz Band */
-    WLAN_MAC_2_4_BAND = 1 << 0,
-/* WLAN MAC Operates in 5 GHz Band */
-    WLAN_MAC_5_0_BAND = 1 << 1
-} wlan_mac_band;
 
 typedef int wifi_radio;
 typedef int wifi_channel;
@@ -86,8 +57,7 @@ typedef enum {
     WIFI_ERROR_INVALID_REQUEST_ID = -6,
     WIFI_ERROR_TIMED_OUT = -7,
     WIFI_ERROR_TOO_MANY_REQUESTS = -8,          // Too many instances of this request
-    WIFI_ERROR_OUT_OF_MEMORY = -9,
-    WIFI_ERROR_BUSY = -10,
+    WIFI_ERROR_OUT_OF_MEMORY = -9
 } wifi_error;
 
 typedef unsigned char byte;
@@ -114,20 +84,10 @@ typedef struct wifi_interface_info *wifi_interface_handle;
 /* Initialize/Cleanup */
 
 wifi_error wifi_initialize(wifi_handle *handle);
-
-/**
- * wifi_wait_for_driver
- * Function should block until the driver is ready to proceed.
- * Any errors from this function is considered fatal & will fail the HAL startup sequence.
- *
- * on success returns WIFI_SUCCESS
- * on failure returns WIFI_ERROR_TIMED_OUT
- */
-wifi_error wifi_wait_for_driver_ready(void);
-
 typedef void (*wifi_cleaned_up_handler) (wifi_handle handle);
 void wifi_cleanup(wifi_handle handle, wifi_cleaned_up_handler handler);
 void wifi_event_loop(wifi_handle handle);
+wifi_interface_handle wifi_get_iface_handle(wifi_handle handle, char *name);
 
 /* Error handling */
 void wifi_get_error_info(wifi_error err, const char **msg); // return a pointer to a static string
@@ -156,19 +116,12 @@ void wifi_get_error_info(wifi_error err, const char **msg); // return a pointer 
 #define WIFI_FEATURE_MKEEP_ALIVE        0x100000    // WiFi mkeep_alive
 #define WIFI_FEATURE_CONFIG_NDO         0x200000    // ND offload configure
 #define WIFI_FEATURE_TX_TRANSMIT_POWER  0x400000    // Capture Tx transmit power levels
-#define WIFI_FEATURE_CONTROL_ROAMING    0x800000    // Enable/Disable firmware roaming
-#define WIFI_FEATURE_IE_WHITELIST       0x1000000   // Support Probe IE white listing
-#define WIFI_FEATURE_SCAN_RAND          0x2000000   // Support MAC & Probe Sequence Number randomization
-#define WIFI_FEATURE_SET_TX_POWER_LIMIT 0x4000000   // Support Tx Power Limit setting
-#define WIFI_FEATURE_USE_BODY_HEAD_SAR  0x8000000   // Support Using Body/Head Proximity for SAR
-#define WIFI_FEATURE_SET_LATENCY_MODE   0x40000000  // Support Latency mode setting
-#define WIFI_FEATURE_P2P_RAND_MAC       0x80000000  // Support Support P2P MAC randomization
 // Add more features here
 
 
 typedef int feature_set;
 
-#define IS_MASK_SET(mask, flags)        (((flags) & (mask)) == (mask))
+#define IS_MASK_SET(mask, flags)        ((flags & mask) == mask)
 
 #define IS_SUPPORTED_FEATURE(feature, featureSet)       IS_MASK_SET(feature, featureSet)
 
@@ -186,7 +139,6 @@ wifi_error wifi_get_concurrency_matrix(wifi_interface_handle handle, int set_siz
 
 wifi_error wifi_get_ifaces(wifi_handle handle, int *num_ifaces, wifi_interface_handle **ifaces);
 wifi_error wifi_get_iface_name(wifi_interface_handle iface, char *name, size_t size);
-wifi_interface_handle wifi_get_iface_handle(wifi_handle handle, char *name);
 
 /* Configuration events */
 
@@ -197,25 +149,6 @@ typedef struct {
 } wifi_event_handler;
 
 typedef struct {
-    char iface_name[IFNAMSIZ + 1];
-    wifi_channel channel;
-} wifi_iface_info;
-
-typedef struct {
-    u32 wlan_mac_id;
-/* BIT MASK of BIT(WLAN_MAC*) as represented by wlan_mac_band */
-    u32 mac_band;
-/* Represents the connected Wi-Fi interfaces associated with each MAC */
-    int num_iface;
-    wifi_iface_info *iface_info;
-} wifi_mac_info;
-
-typedef struct {
-        void (*on_radio_mode_change)(wifi_request_id id, unsigned num_mac,
-                                     wifi_mac_info *mac_info);
-} wifi_radio_mode_change_handler;
-
-typedef struct {
         void (*on_rssi_threshold_breached)(wifi_request_id id, u8 *cur_bssid, s8 cur_rssi);
 } wifi_rssi_event_handler;
 
@@ -223,9 +156,6 @@ wifi_error wifi_set_iface_event_handler(wifi_request_id id, wifi_interface_handl
 wifi_error wifi_reset_iface_event_handler(wifi_request_id id, wifi_interface_handle iface);
 
 wifi_error wifi_set_nodfs_flag(wifi_interface_handle handle, u32 nodfs);
-wifi_error wifi_select_tx_power_scenario(wifi_interface_handle handle, wifi_power_scenario scenario);
-wifi_error wifi_reset_tx_power_scenario(wifi_interface_handle handle);
-wifi_error wifi_set_latency_mode(wifi_interface_handle handle, wifi_latency_mode mode);
 
 typedef struct rx_data_cnt_details_t {
     int rx_unicast_cnt;     /*Total rx unicast packet which woke up host */
@@ -274,6 +204,8 @@ typedef struct wlan_driver_wake_reason_cnt_t {
     RX_MULTICAST_WAKE_DATA_CNT rx_multicast_wake_pkt_info;
 } WLAN_DRIVER_WAKE_REASON_CNT;
 
+
+
 /* include various feature headers */
 
 #include "gscan.h"
@@ -284,12 +216,10 @@ typedef struct wlan_driver_wake_reason_cnt_t {
 #include "wifi_config.h"
 #include "wifi_nan.h"
 #include "wifi_offload.h"
-#include "roam.h"
 
 //wifi HAL function pointer table
 typedef struct {
     wifi_error (* wifi_initialize) (wifi_handle *);
-    wifi_error (* wifi_wait_for_driver_ready) (void);
     void (* wifi_cleanup) (wifi_handle, wifi_cleaned_up_handler);
     void (*wifi_event_loop)(wifi_handle);
     void (* wifi_get_error_info) (wifi_error , const char **);
@@ -363,14 +293,15 @@ typedef struct {
     wifi_error (* wifi_set_passpoint_list)(wifi_request_id id, wifi_interface_handle iface,
             int num, wifi_passpoint_network *networks, wifi_passpoint_event_handler handler);
     wifi_error (* wifi_reset_passpoint_list)(wifi_request_id id, wifi_interface_handle iface);
+    wifi_error (*wifi_set_bssid_blacklist)(wifi_request_id id, wifi_interface_handle iface,
+                  wifi_bssid_params params);
     wifi_error (*wifi_set_lci) (wifi_request_id id, wifi_interface_handle iface,
 	                             wifi_lci_information *lci);
     wifi_error (*wifi_set_lcr) (wifi_request_id id, wifi_interface_handle iface,
 	                             wifi_lcr_information *lcr);
     wifi_error (*wifi_start_sending_offloaded_packet)(wifi_request_id id,
-                                wifi_interface_handle iface, u16 ether_type, u8 *ip_packet,
-                                u16 ip_packet_len, u8 *src_mac_addr, u8 *dst_mac_addr,
-                                u32 period_msec);
+                                wifi_interface_handle iface, u8 *ip_packet, u16 ip_packet_len,
+                                u8 *src_mac_addr, u8 *dst_mac_addr, u32 period_msec);
     wifi_error (*wifi_stop_sending_offloaded_packet)(wifi_request_id id,
                                 wifi_interface_handle iface);
     wifi_error (*wifi_start_rssi_monitoring)(wifi_request_id id, wifi_interface_handle
@@ -430,24 +361,6 @@ typedef struct {
         NanVersion* version);
     wifi_error (*wifi_nan_get_capabilities)(transaction_id id,
         wifi_interface_handle iface);
-    wifi_error (*wifi_nan_data_interface_create)(transaction_id id,
-                                                 wifi_interface_handle iface,
-                                                 char *iface_name);
-    wifi_error (*wifi_nan_data_interface_delete)(transaction_id id,
-                                                 wifi_interface_handle iface,
-                                                 char *iface_name);
-    wifi_error (*wifi_nan_data_request_initiator)(
-        transaction_id id, wifi_interface_handle iface,
-        NanDataPathInitiatorRequest *msg);
-    wifi_error (*wifi_nan_data_indication_response)(
-        transaction_id id, wifi_interface_handle iface,
-        NanDataPathIndicationResponse *msg);
-    wifi_error (*wifi_nan_data_end)(transaction_id id,
-                                    wifi_interface_handle iface,
-                                    NanDataPathEndRequest *msg);
-    wifi_error (*wifi_select_tx_power_scenario)(wifi_interface_handle iface,
-                                                wifi_power_scenario scenario);
-    wifi_error (*wifi_reset_tx_power_scenario)(wifi_interface_handle iface);
 
     /**
      * Returns the chipset's hardware filtering capabilities:
@@ -465,22 +378,6 @@ typedef struct {
      */
     wifi_error (*wifi_set_packet_filter)(wifi_interface_handle handle,
                                          const u8 *program, u32 len);
-    wifi_error (*wifi_read_packet_filter)(wifi_interface_handle handle,
-                                          u32 src_offset, u8 *host_dst,
-                                          u32 length);
-    wifi_error (*wifi_get_roaming_capabilities)(wifi_interface_handle handle,
-                                                wifi_roaming_capabilities *caps);
-    wifi_error (*wifi_enable_firmware_roaming)(wifi_interface_handle handle,
-                                               fw_roaming_state_t state);
-    wifi_error (*wifi_configure_roaming)(wifi_interface_handle handle,
-                                         wifi_roaming_config *roaming_config);
-    wifi_error (*wifi_set_radio_mode_change_handler)(wifi_request_id id, wifi_interface_handle
-                        iface, wifi_radio_mode_change_handler eh);
-    wifi_error (*wifi_set_latency_mode)(wifi_interface_handle iface,
-                                        wifi_latency_mode mode);
-    wifi_error (*wifi_add_or_remove_virtual_intf)(wifi_interface_handle iface,
-                                                  const char* ifname, u32 iface_type,
-                                                  bool create);
 } wifi_hal_fn;
 wifi_error init_wifi_vendor_hal_func_table(wifi_hal_fn *fn);
 #ifdef __cplusplus

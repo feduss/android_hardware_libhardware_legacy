@@ -25,6 +25,7 @@
 #include <utils/String16.h>
 #include <utils/String8.h>
 
+#include <media/IAudioFlinger.h>
 #include <hardware_legacy/AudioSystemLegacy.h>
 
 #include <system/audio.h>
@@ -119,7 +120,7 @@ public:
     /**
      * Return a recent count of the number of audio frames presented to an external observer.
      */
-    virtual status_t    getPresentationPosition(uint64_t *frames, struct timespec *timestamp);
+    virtual status_t    getPresentationPosition(uint64_t *frames, struct timespec *timestamp) = 0;
 
 };
 
